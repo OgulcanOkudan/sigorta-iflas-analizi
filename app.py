@@ -63,4 +63,16 @@ for i in range(6):
 hasar_ort = sum(h_verileri) / 6
 
 st.sidebar.markdown("---")
-st.sidebar.markdown('<p class="sidebar-subheader">💰 Fiyatlandırma</
+st.sidebar.markdown('<p class="sidebar-subheader">💰 Fiyatlandırma</p>', unsafe_allow_html=True)
+kar_marji = st.sidebar.slider("Hedeflenen Kâr Marjı (%)", 0, 100, 25)
+if kar_marji < 15:
+    st.sidebar.warning("⚠️ Rekabetçi Mod: Risk yüksek!")
+elif 15 <= kar_marji <= 35:
+    st.sidebar.info("✅ Dengeli Mod: İdeal seviye.")
+else:
+    st.sidebar.success("🛡️ Güvenli Mod: Minimum risk.")
+
+st.sidebar.markdown("---")
+st.sidebar.markdown('<p class="sidebar-subheader">🏢 Risk Yönetimi</p>', unsafe_allow_html=True)
+reasurans_orani = st.sidebar.slider("Risk Devir Oranı (%)", 0, 90, 0)
+st.sidebar.info(f"🛡️ Şirket Üzerindeki Risk
