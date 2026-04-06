@@ -1,55 +1,145 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Sigorta Risk Analizörü", layout="wide")
+# Sayfa Ayarları
+st.set_page_config(page_title="Aktüeryal Risk & Fiyatlandırma Paneli", layout="wide")
 
-st.title("🛡️ Profesyonel Sigorta Risk & İflas Analizörü")
-st.markdown("Bu uygulama, gerçek şirket verilerine dayanarak gelecekteki **İflas Riskini** simüle eder.")
+# Şık bir Başlık ve Açıklama
+st.title("🛡️ Sigorta Risk Analizi & Akıllı Fiyatlandırma Paneli")
+st.markdown("""
+Bu panel, bir sigorta şirketinin finansal sağlığını **Stokastik Simülasyon** yöntemleriyle analiz eder. 
+Verileri girin, ideal priminizi bulun ve iflas riskinizi yönetin.
+""")
 
-# YAN PANEL
+# --- YAN PANEL: VERİ GİRİŞİ ---
 st.sidebar.header("📊 Veri Giriş Merkezi")
-yontem = st.sidebar.radio("Parametre Belirleme:", ("Manuel Tahmin", "Geçmiş Veriden Hesapla"))
 
-if yontem == "Manuel Tahmin":
-    satis_ort = st.sidebar.number_input("Aylık Beklenen Satış", value=100)
-    hasar_ort = st.sidebar.number_input("Aylık Beklenen Hasar", value=30)
-else:
-    st.sidebar.info("Son 6 Ayın Hasar Sayılarını Girin:")
-    h_verileri = [st.sidebar.number_input(f"{i+1}. Ay Hasar", value=25+i) for i in range(6)]
-    hasar_ort = sum(h_verileri) / 6
-    satis_ort = 100
-    st.sidebar.success(f"📈 Ort. Hasar: {hasar_ort:.2f}")
+# 1. Sermaye ve Maliyet
+sermaye = st.sidebar.number_input("Başlangıç Sermayesi (TL)", value=1500000, step=50000)
+maliyet = st.sidebar.number_input(
+    "Dosya Başına Ort. Hasar Maliyeti", 
+    value=7500,
+    help="Geçmiş 1 yıllık: Toplam Tazminat / Toplam Dosya Sayısı. (Severity)"
+)
+satis_hedefi = st.sidebar.slider("Aylık Poliçe Satış Hedefi", 50, 500, 100)
 
+# 2. Geçmiş Hasar Verileri (Frekans)
+st.sidebar.subheader("📉 Son 6 Aylık Hasar Sayıları")
+h_verileri = []
+cols = st.sidebar.columns(2)
+for i in range(6):
+    val = cols[i%2].number_input(f"{i+1}. Ay", value=35 + (i*2), min_value=0)
+    h_verileri.append(val)
+
+hasar_ort = sum(h_verileri) / 6
+
+# 3. Fiyatlandırma Stratejisi
 st.sidebar.markdown("---")
-yil = st.sidebar.slider("Analiz Süresi (Yıl)", 1, 20, 5)
-kasa = st.sidebar.number_input("Başlangıç Sermayesi (TL)", value=1000000)
-prim = st.sidebar.number_input("Birim Prim (TL)", value=2500)
-maliyet = st.sidebar.number_input("Ort. Hasar Maliyeti (TL)", value=6000)
+st.sidebar.subheader("💰 Fiyatlandırma & Kâr")
+kar_marji = st.sidebar.slider("Hedeflenen Kâr Marjı (%)", 0, 100, 25)
 
+# Dinamik Rehberlik Metni
+if kar_marji < 15:
+    st.sidebar.warning("⚠️ Rekabetçi: Pazar payı artar ama risk yüksektir.")
+elif 15 <= kar_marji <= 35:
+    st.sidebar.info("✅ Dengeli: İdeal kâr ve güvenlik dengesi.")
+else:
+    st.sidebar.success("🛡️ Güvenli: İflas riski minimum, primler yüksek.")
+
+# 4. Reasürans (Gizli/Expander)
+with st.sidebar.expander("🏢 Reasürans (Risk Paylaşımı)"):
+    reasurans_orani = st.sidebar.slider("Risk Devir Oranı (%)", 0, 90, 0, help="Hasarların ve primlerin ne kadarı reasüröre devredilecek?")
+    st.write(f"Şirket Riski: %{100-reasurans_orani}")
+
+analiz_suresi = st.sidebar.slider("Analiz Süresi (Yıl)", 1, 5, 3)
+
+# --- HESAPLAMA MOTORU ---
+# Saf Prim ve Brüt Prim
+saf_prim = (hasar_ort * maliyet) / satis_hedefi
+tavsiye_prim = saf_prim * (1 + (kar_marji / 100))
+
+# Reasürans Etkisi (Basitleştirilmiş Quota Share)
+satis_geliri = tavsiye_prim * satis_hedefi * (1 - (reasurans_orani/100))
+beklenen_gider = (hasar_ort * maliyet) * (1 - (reasurans_orani/100))
+
+# --- SİMÜLASYON ---
 if st.sidebar.button("🚀 Analizi Başlat"):
-    aylar = yil * 12
-    sim_n = 10000
+    aylar = analiz_suresi * 12
+    sim_n = 5000 # Hız için 5000 yeterli
     tablo = np.zeros((aylar + 1, sim_n))
-    tablo[0, :] = kasa
+    tablo[0, :] = sermaye
     
     for ay in range(aylar):
-        gelir = np.random.poisson(satis_ort, sim_n) * prim
-        gider = np.random.poisson(hasar_ort, sim_n) * np.random.exponential(maliyet, sim_n)
+        # Gelir ve Gider simülasyonu
+        gelir = np.random.poisson(satis_hedefi, sim_n) * tavsiye_prim * (1 - (reasurans_orani/100))
+        hasar_sayisi = np.random.poisson(hasar_ort, sim_n)
+        
+        # Her simülasyon için toplam hasar maliyeti
+        gider = np.zeros(sim_n)
+        for s in range(sim_n):
+            if hasar_sayisi[s] > 0:
+                gider[s] = np.sum(np.random.exponential(maliyet, hasar_sayisi[s]))
+        
+        gider = gider * (1 - (reasurans_orani/100))
         tablo[ay + 1, :] = tablo[ay, :] + gelir - gider
+
+    # Analitik Sonuçlar
+    iflas_sayisi = np.sum(np.min(tablo, axis=0) < 0)
+    iflas_riski = (iflas_sayisi / sim_n) * 100
+    loss_ratio = (beklenen_gider / satis_geliri) * 100
+    ortalama_kasa = np.mean(tablo[-1, :])
+
+    # --- EKRAN ÇIKTILARI ---
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Tavsiye Edilen Prim", f"{tavsiye_prim:,.0f} TL")
     
-    iflas = (np.sum(np.min(tablo, axis=0) < 0) / sim_n) * 100
-    
-    # METRİKLER
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Analiz Süresi", f"{yil} Yıl")
-    c2.metric("İflas Riski", f"% {iflas:.2f}")
-    c3.metric("Tahmini Kasa", f"{np.mean(tablo[-1,:]):,.0f} TL")
-    
-    # GRAFİK
+    # İflas Riski Renklendirme
+    if iflas_riski < 5:
+        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="GÜVENLİ", delta_color="normal")
+    else:
+        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="RİSKLİ", delta_color="inverse")
+        
+    c3.metric("Loss Ratio (Hasar/Prim)", f"%{loss_ratio:.1f}")
+    c4.metric("Tahmini Kasa", f"{ortalama_kasa:,.0f} TL")
+
+    # --- PROFESYONEL TAVSİYE ---
     st.markdown("---")
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(tablo[:, :100], alpha=0.3, color='#3498db')
-    ax.axhline(0, color='red', linewidth=2, label="İflas Sınırı")
-    ax.set_title(f"{yil} Yıllık Sermaye Akış Simülasyonu")
-    st.pyplot(fig)
+    st.subheader("💡 Aktüeryal Değerlendirme & Reçete")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if iflas_riski > 1:
+            # 99% VaR tabanlı basit sermaye önerisi
+            en_kotu_senaryo = np.percentile(tablo[-1, :], 1)
+            ek_sermaye = abs(min(0, en_kotu_senaryo))
+            st.error(f"**Sermaye Yeterliliği:** Mevcut risk seviyesi yüksek. Riski %1'in altına çekmek için yaklaşık **{ek_sermaye:,.0f} TL** ek sermaye veya daha yüksek reasürans desteği önerilir.")
+        else:
+            st.success("**Sermaye Yeterliliği:** Şirketiniz finansal olarak çok sağlam durumda. Mevcut prim ve sermaye yapısı riskleri karşılamak için yeterli.")
+
+    with col_b:
+        if loss_ratio > 85:
+            st.warning("**Operasyonel Verimlilik:** Loss Ratio çok yüksek. Primlerinizi artırmayı veya hasar yönetim süreçlerini gözden geçirmeyi düşünmelisiniz.")
+        else:
+            st.info("**Operasyonel Verimlilik:** Hasar/Prim dengesi sağlıklı. Bu oran şirketin operasyonel giderlerini karşılamak ve kâr etmek için alan bırakıyor.")
+
+    # --- PLOTLY İNTERAKTİF GRAFİK ---
+    st.subheader(f"📈 {analiz_suresi} Yıllık Sermaye Projeksiyonu (5.000 Senaryo)")
+    fig = go.Figure()
+    
+    # İlk 100 senaryoyu çiz (Performans için)
+    x_ekseni = list(range(aylar + 1))
+    for i in range(100):
+        fig.add_trace(go.Scatter(x=x_ekseni, y=tablo[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
+    
+    # Ortalama Çizgisi
+    fig.add_trace(go.Scatter(x=x_ekseni, y=np.mean(tablo, axis=1), mode='lines', name='Ortalama Beklenti', line=dict(color='yellow', width=3)))
+    
+    # İflas Çizgisi
+    fig.add_trace(go.Scatter(x=x_ekseni, y=[0]*(aylar+1), mode='lines', name='İflas Sınırı (0 TL)', line=dict(color='red', width=2, dash='dash')))
+    
+    fig.update_layout(xaxis_title="Aylar", yaxis_title="Kasa Bakiyesi (TL)", hovermode="x unified", template="plotly_dark")
+    st.plotly_chart(fig, use_container_ Avocado=True)
+
+else:
+    st.info("Yandaki verileri kontrol edin ve analizi başlatmak için butona basın.")
