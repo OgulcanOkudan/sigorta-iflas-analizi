@@ -5,29 +5,35 @@ import plotly.graph_objects as go
 # --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="Aktüeryal Risk & Fiyatlandırma Paneli", layout="wide")
 
-# Sidebar Genişliği ve Dev Başlık Tasarımı (CSS)
+# Sidebar Tasarımı (Fontları ekrana sığacak şekilde optimize ettik)
 st.markdown(
     """
     <style>
     [data-testid="stSidebar"] {
-        min-width: 380px;
-        max-width: 380px;
+        min-width: 360px;
+        max-width: 360px;
     }
-    .sidebar-header {
-        font-size: 32px !important;
+    .buyuk-baslik {
+        font-size: 28px !important;
         font-weight: 800;
         color: #00D1B2;
-        margin-bottom: 15px;
-        margin-top: 10px;
-        line-height: 1.2;
+        margin-bottom: 5px;
     }
-    .sidebar-subheader {
-        font-size: 26px !important;
+    .alt-baslik {
+        font-size: 22px !important;
         font-weight: 700;
         color: #F0F2F6;
-        margin-bottom: 12px;
+        margin-bottom: 5px;
         margin-top: 15px;
-        line-height: 1.2;
+    }
+    /* Butonu daha belirgin yapıyoruz */
+    .stButton>button {
+        height: 60px;
+        font-size: 20px !important;
+        font-weight: bold;
+        color: white;
+        background-color: #00D1B2;
+        border-radius: 10px;
     }
     </style>
     """,
@@ -38,8 +44,8 @@ st.markdown(
 st.title("🛡️ Sigorta Risk Analizi & Akıllı Fiyatlandırma Paneli")
 st.markdown("---")
 
-# --- 3. YAN PANEL: BÖLÜM 1 - TEMEL VERİLER ---
-st.sidebar.markdown('<p class="sidebar-header">📊 Veri Girişi</p>', unsafe_allow_html=True)
+# --- 3. YAN PANEL: VERİ GİRİŞİ ---
+st.sidebar.markdown('<p class="buyuk-baslik">📊 Veri Girişi</p>', unsafe_allow_html=True)
 
 sermaye = st.sidebar.number_input(
     "Başlangıç Sermayesi (TL)", 
@@ -52,69 +58,45 @@ maliyet = st.sidebar.number_input(
     value=7500,
     help="Gerçekleşen her bir hasar dosyasının ortalama maliyetidir (Severity)."
 )
-satis_hedefi = st.sidebar.slider(
-    "Aylık Poliçe Satış Hedefi", 
-    50, 500, 100,
-    help="Hedeflenen aylık poliçe üretim adedi."
-)
+satis_hedefi = st.sidebar.slider("Aylık Poliçe Satış Hedefi", 50, 500, 100, help="Satmayı hedeflediğiniz poliçe sayısı.")
 
-st.sidebar.markdown("---")
-
-# --- 4. YAN PANEL: BÖLÜM 2 - HASAR FREKANSI ---
-st.sidebar.markdown('<p class="sidebar-subheader">📉 Hasar Frekansı</p>', unsafe_allow_html=True)
-st.sidebar.caption("Son 6 aylık hasar adetlerini giriniz:")
+# --- 4. YAN PANEL: HASAR FREKANSI ---
+st.sidebar.markdown('<p class="alt-baslik">📉 Hasar Frekansı</p>', unsafe_allow_html=True)
+st.sidebar.caption("Son 6 aylık hasar adetleri:")
 
 h_verileri = []
 cols = st.sidebar.columns(2)
 for i in range(6):
-    val = cols[i%2].number_input(f"{i+1}. Ay Adedi", value=35 + (i*2), min_value=0)
+    val = cols[i%2].number_input(f"{i+1}. Ay", value=35 + (i*2), min_value=0)
     h_verileri.append(val)
 
 hasar_ort = sum(h_verileri) / 6
 
-st.sidebar.markdown("---")
-
-# --- 5. YAN PANEL: BÖLÜM 3 - FİYATLANDIRMA ---
-st.sidebar.markdown('<p class="sidebar-subheader">💰 Fiyatlandırma</p>', unsafe_allow_html=True)
-kar_marji = st.sidebar.slider(
-    "Hedeflenen Kâr Marjı (%)", 
-    0, 100, 25,
-    help="Hasar maliyetinin üzerine eklenen güvenlik payıdır (Security Loading)."
-)
+# --- 5. YAN PANEL: FİYATLANDIRMA ---
+st.sidebar.markdown('<p class="alt-baslik">💰 Fiyatlandırma</p>', unsafe_allow_html=True)
+kar_marji = st.sidebar.slider("Hedeflenen Kâr Marjı (%)", 0, 100, 25, help="Hasar maliyetinin üzerine eklenen güvenlik payıdır (Loading).")
 
 if kar_marji < 15:
-    st.sidebar.warning("⚠️ Rekabetçi Mod: Risk yüksektir!")
+    st.sidebar.warning("⚠️ Rekabetçi Mod: Risk yüksek!")
 elif 15 <= kar_marji <= 35:
     st.sidebar.info("✅ Dengeli Mod: İdeal seviye.")
 else:
     st.sidebar.success("🛡️ Güvenli Mod: Minimum risk.")
 
-st.sidebar.markdown("---")
-
-# --- 6. YAN PANEL: BÖLÜM 4 - RISK YÖNETİMİ ---
-st.sidebar.markdown('<p class="sidebar-subheader">🏢 Risk Yönetimi</p>', unsafe_allow_html=True)
-reasurans_orani = st.sidebar.slider(
-    "Risk Devir Oranı (%)", 
-    0, 90, 0,
-    help="Hasarların ne kadarını reasüröre devretmek istiyorsunuz?"
-)
+# --- 6. YAN PANEL: RİSK VE SİMÜLASYON ---
+st.sidebar.markdown('<p class="alt-baslik">🏢 Risk & Simülasyon</p>', unsafe_allow_html=True)
+reasurans_orani = st.sidebar.slider("Risk Devir Oranı (%)", 0, 90, 0, help="Hasarların ne kadarını reasüröre devretmek istiyorsunuz?")
 st.sidebar.info(f"🛡️ Şirket Üzerindeki Risk: %{100 - reasurans_orani}")
+analiz_suresi = st.sidebar.slider("Analiz Süresi (Yıl)", 1, 5, 3)
 
-st.sidebar.markdown("---")
-
-# --- 7. YAN PANEL: BÖLÜM 5 - SİMÜLASYON AYARI ---
-st.sidebar.markdown('<p class="sidebar-subheader">⏱️ Simülasyon Ayarı</p>', unsafe_allow_html=True)
-analiz_suresi = st.sidebar.slider(
-    "Analiz Süresi (Yıl)", 
-    1, 5, 3,
-    help="Gelecekte kaç yıllık bir finansal projeksiyon görmek istiyorsunuz?"
-)
-
-# --- 8. MATEMATİKSEL HESAPLAMALAR ---
+# --- 7. MATEMATİKSEL HESAPLAMALAR ---
 s_h = satis_hedefi if satis_hedefi > 0 else 1
 saf_prim = (hasar_ort * maliyet) / s_h
 tavsiye_prim = saf_prim * (1 + (kar_marji / 100))
 net_gelir = tavsiye_prim * s_h * (1 - (reasurans_orani/100))
 net_gider = (hasar_ort * maliyet) * (1 - (reasurans_orani/100))
 
-# --- 9
+# ==========================================
+# ANA EKRAN DÜZENİ (BUTON ARTIK BURADA!)
+# ==========================================
+st.info("👈 Lütfen sol panelden verilerinizi girin ve analizi başlatmak için aşağıdaki dev butona tıklayın. Yan paneldeki (?) simgeleri size rehberlik edecektir.")
