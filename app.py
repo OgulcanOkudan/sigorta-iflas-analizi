@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 # --- SAYFA VE TASARIM AYARLARI ---
 st.set_page_config(page_title="Aktüeryal Risk & Fiyatlandırma Paneli", layout="wide")
 
-# Sidebar Tasarımı (380px genişlik ve dev başlıklar)
+# Sidebar Tasarımı: Dev Başlıklar ve Ferah Bölmeler
 st.markdown(
     """
     <style>
@@ -37,31 +37,27 @@ st.markdown(
 st.title("🛡️ Sigorta Risk Analizi & Akıllı Fiyatlandırma Paneli")
 st.markdown("---")
 
-# --- YAN PANEL: 1. BÖLÜM - TEMEL VERİLER ---
+# --- YAN PANEL ---
 st.sidebar.markdown('<p class="sidebar-header">📊 Veri Girişi</p>', unsafe_allow_html=True)
 
 sermaye = st.sidebar.number_input(
     "Başlangıç Sermayesi (TL)", 
     value=1500000, 
     step=50000,
-    help="Şirketin hasarları ödemek için kasasında hazır tuttuğu toplam nakittir."
+    help="Şirketin kasasındaki toplam nakit rezervi."
 )
 maliyet = st.sidebar.number_input(
     "Dosya Başına Ort. Hasar Maliyeti", 
     value=7500,
-    help="Gerçekleşen her bir hasar dosyasının şirkete ortalama maliyetidir (Severity)."
+    help="Ortalama hasar şiddeti (Severity)."
 )
 satis_hedefi = st.sidebar.slider(
     "Aylık Poliçe Satış Hedefi", 
-    50, 500, 100,
-    help="Her ay satmayı planladığınız yeni poliçe sayısıdır."
+    50, 500, 100
 )
 
-st.sidebar.markdown("---") # AYIRICI ÇİZGİ
-
-# --- YAN PANEL: 2. BÖLÜM - HASAR FREKANSI ---
+st.sidebar.markdown("---") # ÇİZGİ
 st.sidebar.markdown('<p class="sidebar-subheader">📉 Hasar Frekansı</p>', unsafe_allow_html=True)
-st.sidebar.caption("Son 6 aylık hasar adetlerini giriniz:")
 
 h_verileri = []
 cols = st.sidebar.columns(2)
@@ -71,105 +67,58 @@ for i in range(6):
 
 hasar_ort = sum(h_verileri) / 6
 
-st.sidebar.markdown("---") # AYIRICI ÇİZGİ
-
-# --- YAN PANEL: 3. BÖLÜM - FİYATLANDIRMA (REHBERLİK GERİ GELDİ) ---
+st.sidebar.markdown("---") # ÇİZGİ
 st.sidebar.markdown('<p class="sidebar-subheader">💰 Fiyatlandırma</p>', unsafe_allow_html=True)
-kar_marji = st.sidebar.slider(
-    "Hedeflenen Kâr Marjı (%)", 
-    0, 100, 25,
-    help="Beklenen hasar maliyetinin üzerine eklenen güvenlik payıdır (Security Loading)."
-)
+kar_marji = st.sidebar.slider("Hedeflenen Kâr Marjı (%)", 0, 100, 25)
 
-# --- DİNAMİK REHBERLİK METNİ ---
 if kar_marji < 15:
-    st.sidebar.warning("⚠️ Rekabetçi Mod: Pazar payı artar ama iflas riski yüksektir!")
+    st.sidebar.warning("⚠️ Rekabetçi Mod")
 elif 15 <= kar_marji <= 35:
-    st.sidebar.info("✅ Dengeli Mod: Aktüeryal açıdan ideal kâr ve güvenlik dengesi.")
+    st.sidebar.info("✅ Dengeli Mod")
 else:
-    st.sidebar.success("🛡️ Güvenli Mod: İflas riski minimize edilir, yüksek prim uygulanır.")
+    st.sidebar.success("🛡️ Güvenli Mod")
 
-st.sidebar.markdown("---") # AYIRICI ÇİZGİ
-
-# --- YAN PANEL: 4. BÖLÜM - RISK YÖNETİMİ ---
+st.sidebar.markdown("---") # ÇİZGİ
 st.sidebar.markdown('<p class="sidebar-subheader">🏢 Risk Yönetimi</p>', unsafe_allow_html=True)
-reasurans_orani = st.sidebar.slider(
-    "Risk Devir Oranı (%)", 
-    0, 90, 0,
-    help="Hasarların ne kadarını başka bir şirkete devretmek istiyorsunuz?"
-)
+reasurans_orani = st.sidebar.slider("Risk Devir Oranı (%)", 0, 90, 0)
 st.sidebar.info(f"🛡️ Şirket Üzerindeki Risk: %{100 - reasurans_orani}")
 
-st.sidebar.markdown("---") # AYIRICI ÇİZGİ
-
-# --- YAN PANEL: 5. BÖLÜM - SİMÜLASYON AYARLARI ---
+st.sidebar.markdown("---") # ÇİZGİ
 st.sidebar.markdown('<p class="sidebar-subheader">⏱️ Simülasyon Ayarı</p>', unsafe_allow_html=True)
-analiz_suresi = st.sidebar.slider(
-    "Analiz Süresi (Yıl)", 
-    1, 5, 3,
-    help="Gelecekte kaç yıllık bir finansal projeksiyon görmek istiyorsunuz?"
-)
+analiz_suresi = st.sidebar.slider("Analiz Süresi (Yıl)", 1, 5, 3)
 
-# --- MATEMATİKSEL HESAPLAMALAR ---
-satis_h = satis_hedefi if satis_hedefi > 0 else 1
-saf_prim = (hasar_ort * maliyet) / satis_h
+# --- MATEMATİKSEL ARKA PLAN ---
+s_hedef = satis_hedefi if satis_hedefi > 0 else 1
+saf_prim = (hasar_ort * maliyet) / s_hedef
 tavsiye_prim = saf_prim * (1 + (kar_marji / 100))
-net_satis_geliri = tavsiye_prim * satis_h * (1 - (reasurans_orani/100))
-net_beklenen_gider = (hasar_ort * maliyet) * (1 - (reasurans_orani/100))
+net_gelir = tavsiye_prim * s_hedef * (1 - (reasurans_orani/100))
+net_gider = (hasar_ort * maliyet) * (1 - (reasurans_orani/100))
 
-# --- SİMÜLASYON MOTORU ---
+# --- ANALİZİ BAŞLAT BUTONU VE TÜM İÇERİK ---
 if st.sidebar.button("🚀 ANALİZİ BAŞLAT"):
-    aylar = analiz_suresi * 12
-    sim_n = 5000 
-    tablo = np.zeros((aylar + 1, sim_n))
-    tablo[0, :] = sermaye
-    
-    for ay in range(aylar):
-        gelir = np.random.poisson(satis_h, sim_n) * tavsiye_prim * (1 - (reasurans_orani/100))
-        hasar_sayisi = np.random.poisson(hasar_ort, sim_n)
-        gider = np.zeros(sim_n)
-        for s in range(sim_n):
-            if hasar_sayisi[s] > 0:
-                gider[s] = np.sum(np.random.exponential(maliyet, hasar_sayisi[s]))
-        gider = gider * (1 - (reasurans_orani/100))
-        tablo[ay + 1, :] = tablo[ay, :] + gelir - gider
+    with st.spinner("5.000 farklı senaryo hesaplanıyor, lütfen bekleyin..."):
+        aylar = analiz_suresi * 12
+        sim_n = 5000 
+        tablo = np.zeros((aylar + 1, sim_n))
+        tablo[0, :] = sermaye
+        
+        # Simülasyon Döngüsü
+        for ay in range(aylar):
+            # Poisson ile gelir ve hasar adedi simülasyonu
+            gelir_sim = np.random.poisson(s_hedef, sim_n) * tavsiye_prim * (1 - (reasurans_orani/100))
+            hasar_sayisi = np.random.poisson(hasar_ort, sim_n)
+            
+            # Üstel dağılım ile hasar tutarı simülasyonu
+            gider_sim = np.zeros(sim_n)
+            for s in range(sim_n):
+                if hasar_sayisi[s] > 0:
+                    gider_sim[s] = np.sum(np.random.exponential(maliyet, hasar_sayisi[s]))
+            
+            gider_sim = gider_sim * (1 - (reasurans_orani/100))
+            tablo[ay + 1, :] = tablo[ay, :] + gelir_sim - gider_sim
 
-    iflas_sayisi = np.sum(np.min(tablo, axis=0) < 0)
-    iflas_riski = (iflas_sayisi / sim_n) * 100
-    denom = net_satis_geliri if net_satis_geliri > 0 else 1
-    loss_ratio = (net_beklenen_gider / denom) * 100
-    ortalama_kasa = np.mean(tablo[-1, :])
-
-    # --- SONUÇ KARTLARI ---
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Önerilen Prim", f"{tavsiye_prim:,.0f} TL")
-    if iflas_riski < 5:
-        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="GÜVENLİ", delta_color="normal")
-    else:
-        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="RİSKLİ", delta_color="inverse")
-    c3.metric("Loss Ratio (Hasar/Prim)", f"%{loss_ratio:.1f}")
-    c4.metric("Ortalama Kasa", f"{ortalama_kasa:,.0f} TL")
-
-    st.markdown("---")
-    st.subheader("💡 Aktüeryal Analiz Raporu")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        if iflas_riski > 1:
-            en_kotu = np.percentile(tablo[-1, :], 1)
-            ek_sermaye = abs(min(0, en_kotu))
-            st.error(f"**Sermaye Önerisi:** Riski düşürmek için yaklaşık {ek_sermaye:,.0f} TL ek sermaye gerekebilir.")
-        else:
-            st.success("**Sermaye Durumu:** Finansal dayanıklılığınız mükemmel.")
-    with col_b:
-        if loss_ratio > 85:
-            st.warning(f"**Karlılık Notu:** %{loss_ratio:.1f}. Hasar/Prim dengesi zayıf. Prim artışı önerilir.")
-        else:
-            st.info(f"**Karlılık Notu:** %{loss_ratio:.1f}. Hasar/Prim dengesi sağlıklı.")
-
-    # --- LOSS RATIO AÇIKLAMASI ---
-    with st.expander("🧐 Loss Ratio (Hasar/Prim Oranı) Nedir?"):
-        st.write("Sigortacılıkta başarının en temel göstergesidir:")
-        st.latex(r"Loss\ Ratio = \frac{Toplam\ Hasar\ Maliyeti}{Toplam\ Kazanılan\ Prim} \times 100")
-        st.write("- **%100+:** Zarar. - **%85-100:** Kritik. - **%85 Altı:** Sağlıklı Teknik Kâr.")
-
-    #
+        # Analitik Çıktılar
+        iflas_sayisi = np.sum(np.min(tablo, axis=0) < 0)
+        iflas_riski = (iflas_sayisi / sim_n) * 100
+        loss_ratio = (net_gider / (net_gelir if net_gelir > 0 else 1)) * 100
+        ortalama_kasa = np.mean(tablo[-1,
