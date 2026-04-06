@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 # --- SAYFA VE TASARIM AYARLARI ---
 st.set_page_config(page_title="Aktüeryal Risk & Fiyatlandırma Paneli", layout="wide")
 
-# Sidebar Genişliğini (380px) ve Başlık Boyutlarını Ayarlayan CSS
+# Sidebar Tasarımı (380px genişlik ve büyük başlıklar)
 st.markdown(
     """
     <style>
@@ -45,17 +45,17 @@ sermaye = st.sidebar.number_input(
     "Başlangıç Sermayesi (TL)", 
     value=1500000, 
     step=50000,
-    help="Şirketin tüm hasarları ödemek için hazırda bulundurduğu toplam nakit rezervidir."
+    help="Şirketin hasarları ödemek için kasasında tuttuğu toplam nakittir."
 )
 maliyet = st.sidebar.number_input(
     "Dosya Başına Ort. Hasar Maliyeti", 
     value=7500,
-    help="Dosya başına düşen ortalama hasar tutarıdır (Severity)."
+    help="Her bir hasar dosyasının şirkete ortalama maliyetidir (Severity)."
 )
 satis_hedefi = st.sidebar.slider(
     "Aylık Poliçe Satış Hedefi", 
     50, 500, 100,
-    help="Her ay kaç adet yeni sigorta poliçesi satmayı hedefliyorsunuz?"
+    help="Her ay satmayı planladığınız yeni poliçe sayısıdır."
 )
 
 # 2. Geçmiş Hasar Verileri
@@ -74,10 +74,9 @@ st.sidebar.markdown('<p class="sidebar-subheader">💰 Fiyatlandırma & Kâr</p>
 kar_marji = st.sidebar.slider(
     "Hedeflenen Kâr Marjı (%)", 
     0, 100, 25,
-    help="Beklenen hasarların üzerine eklenen emniyet payıdır (Security Loading)."
+    help="Gelecekteki belirsizlikler için beklenen hasarın üzerine eklenen paydır (Security Loading)."
 )
 
-# Dinamik Rehberlik Metni
 if kar_marji < 15:
     st.sidebar.warning("⚠️ Rekabetçi: Risk yüksektir.")
 elif 15 <= kar_marji <= 35:
@@ -85,9 +84,16 @@ elif 15 <= kar_marji <= 35:
 else:
     st.sidebar.success("🛡️ Güvenli: İflas riski minimum.")
 
-# 4. Reasürans & Süre
+# 4. Gelişmiş Risk Yönetimi (BURASI DÜZELTİLDİ)
 with st.sidebar.expander("🏢 Gelişmiş Risk Yönetimi"):
-    reasurans_orani = st.sidebar.slider("Risk Devir Oranı (%)", 0, 90, 0)
+    reasurans_orani = st.sidebar.slider(
+        "Risk Devir Oranı (%)", 
+        0, 90, 0,
+        help="Hasarların ne kadarını reasüröre devretmek istiyorsunuz?"
+    )
+    # Eksik olan dinamik bilgi satırı eklendi:
+    st.info(f"🛡️ Şirket Üzerindeki Risk: %{100 - reasurans_orani}")
+    
     analiz_suresi = st.sidebar.slider("Analiz Süresi (Yıl)", 1, 5, 3)
 
 # --- HESAPLAMA MOTORU ---
@@ -122,4 +128,40 @@ if st.sidebar.button("🚀 Analizi Başlat"):
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Tavsiye Edilen Prim", f"{tavsiye_prim:,.0f} TL")
     if iflas_riski < 5:
-        c2.metric
+        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="GÜVENLİ", delta_color="normal")
+    else:
+        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="RİSKLİ", delta_color="inverse")
+    c3.metric("Loss Ratio", f"%{loss_ratio:.1f}")
+    c4.metric("Tahmini Kasa", f"{ortalama_kasa:,.0f} TL")
+
+    st.markdown("---")
+    st.subheader("💡 Aktüeryal Değerlendirme & Reçete")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        if iflas_riski > 1:
+            en_kotu_senaryo = np.percentile(tablo[-1, :], 1)
+            ek_sermaye = abs(min(0, en_kotu_senaryo))
+            st.error(f"**Sermaye:** Riski %1'e çekmek için yaklaşık {ek_sermaye:,.0f} TL ek sermaye önerilir.")
+        else:
+            st.success("**Sermaye:** Finansal dayanıklılığınız mükemmel durumda.")
+    with col_b:
+        if loss_ratio > 85:
+            st.warning("**Verimlilik:** Hasar/Prim dengesi zayıf. Fiyat artırımı önerilir.")
+        else:
+            st.info("**Verimlilik:** Operasyonel karlılık dengede.")
+
+    # --- PLOTLY İNTERAKTİF GRAFİK ---
+    st.subheader(f"📈 {analiz_suresi} Yıllık Sermaye Projeksiyonu")
+    fig = go.Figure()
+    x_ekseni = list(range(aylar + 1))
+    for i in range(min(100, sim_n)):
+        fig.add_trace(go.Scatter(x=x_ekseni, y=tablo[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
+    
+    fig.add_trace(go.Scatter(x=x_ekseni, y=np.mean(tablo, axis=1), mode='lines', name='Ortalama', line=dict(color='yellow', width=3)))
+    fig.add_trace(go.Scatter(x=x_ekseni, y=[0]*(aylar+1), mode='lines', name='İflas Sınırı', line=dict(color='red', width=2, dash='dash')))
+    
+    fig.update_layout(xaxis_title="Aylar", yaxis_title="Kasa Bakiyesi (TL)", hovermode="x unified", template="plotly_dark")
+    st.plotly_chart(fig, use_container_width=True)
+
+else:
+    st.info("📊 Başlamak için soldaki verileri girip 'Analizi Başlat' butonuna tıklayın. Soru işaretlerinden (?) bilgi alabilirsiniz.")
