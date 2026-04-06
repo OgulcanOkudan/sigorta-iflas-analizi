@@ -2,10 +2,10 @@ import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 
-# --- 1. SAYFA VE TASARIM AYARLARI ---
+# --- 1. SAYFA AYARLARI ---
 st.set_page_config(page_title="Aktüeryal Risk & Fiyatlandırma Paneli", layout="wide")
 
-# Sidebar Tasarımı (380px genişlik ve büyük başlıklar)
+# Sidebar Tasarımı (CSS) - Başlık boyutları ve ferahlık ayarı
 st.markdown(
     """
     <style>
@@ -19,7 +19,6 @@ st.markdown(
         color: #00D1B2;
         margin-bottom: 15px;
         margin-top: 10px;
-        line-height: 1.2;
     }
     .sidebar-subheader {
         font-size: 26px !important;
@@ -53,11 +52,10 @@ maliyet = st.sidebar.number_input(
 )
 satis_hedefi = st.sidebar.slider(
     "Aylık Poliçe Satış Hedefi", 
-    50, 500, 100,
-    help="Her ay satmayı hedeflediğiniz yeni poliçe sayısı."
+    50, 500, 100
 )
 
-st.sidebar.markdown("---") # AYIRICI ÇİZGİ
+st.sidebar.markdown("---") # ÇİZGİ
 
 # --- 4. YAN PANEL: HASAR FREKANSI ---
 st.sidebar.markdown('<p class="sidebar-subheader">📉 Hasar Frekansı</p>', unsafe_allow_html=True)
@@ -66,15 +64,13 @@ st.sidebar.caption("Son 6 aylık hasar adetlerini giriniz:")
 h_verileri = []
 cols = st.sidebar.columns(2)
 for i in range(6):
-    val = cols[i%2].number_input(f"{i+1}. Ay", value=35 + (i*2), min_value=0)
+    val = cols[i%2].number_input(f"{i+1}. Ay Adedi", value=35 + (i*2), min_value=0)
     h_verileri.append(val)
 
 hasar_ort = sum(h_verileri) / 6
 
-st.sidebar.markdown("---") # AYIRICI ÇİZGİ
+st.sidebar.markdown("---") # ÇİZGİ
 
 # --- 5. YAN PANEL: FİYATLANDIRMA ---
 st.sidebar.markdown('<p class="sidebar-subheader">💰 Fiyatlandırma</p>', unsafe_allow_html=True)
-kar_marji = st.sidebar.slider(
-    "Hedeflenen Kâr Marjı (%)", 
-    0, 100, 25
+kar_
