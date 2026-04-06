@@ -5,16 +5,14 @@ import plotly.graph_objects as go
 # --- SAYFA VE TASARIM AYARLARI ---
 st.set_page_config(page_title="Aktüeryal Risk & Fiyatlandırma Paneli", layout="wide")
 
-# Sidebar Genişliğini ve Başlık Boyutlarını Ayarlayan CSS
+# Sidebar Genişliğini (380px) ve Başlık Boyutlarını Ayarlayan CSS
 st.markdown(
     """
     <style>
-    /* Sol Panel Genişliği (Tam kıvamında: 380px) */
     [data-testid="stSidebar"] {
         min-width: 380px;
         max-width: 380px;
     }
-    /* Sidebar Başlık Stilleri */
     .sidebar-header {
         font-size: 26px !important;
         font-weight: bold;
@@ -47,22 +45,21 @@ sermaye = st.sidebar.number_input(
     "Başlangıç Sermayesi (TL)", 
     value=1500000, 
     step=50000,
-    help="Şirketin tüm hasarları ödemek için hazırda bulundurduğu toplam nakit rezervidir. Kasanız ne kadar doluysa, risklere karşı o kadar dirençli olursunuz."
+    help="Şirketin tüm hasarları ödemek için hazırda bulundurduğu toplam nakit rezervidir."
 )
 maliyet = st.sidebar.number_input(
     "Dosya Başına Ort. Hasar Maliyeti", 
     value=7500,
-    help="Dosya başına düşen ortalama hasar tutarıdır (Severity). Örn: Toplam Tazminat / Toplam Hasar Dosya Sayısı."
+    help="Dosya başına düşen ortalama hasar tutarıdır (Severity)."
 )
 satis_hedefi = st.sidebar.slider(
     "Aylık Poliçe Satış Hedefi", 
     50, 500, 100,
-    help="Her ay kaç adet yeni sigorta poliçesi satmayı hedefliyorsunuz? Satış arttıkça prim geliri artar ancak risk dağılımı da değişir."
+    help="Her ay kaç adet yeni sigorta poliçesi satmayı hedefliyorsunuz?"
 )
 
 # 2. Geçmiş Hasar Verileri
 st.sidebar.markdown('<p class="sidebar-subheader">📉 Son 6 Aylık Hasar Sayıları</p>', unsafe_allow_html=True)
-st.sidebar.caption("Gelecekteki hasar sıklığını (Frequency) tahmin etmek için son 6 aylık adetleri giriniz.")
 h_verileri = []
 cols = st.sidebar.columns(2)
 for i in range(6):
@@ -77,29 +74,21 @@ st.sidebar.markdown('<p class="sidebar-subheader">💰 Fiyatlandırma & Kâr</p>
 kar_marji = st.sidebar.slider(
     "Hedeflenen Kâr Marjı (%)", 
     0, 100, 25,
-    help="Aktüeryal dilde 'Security Loading'dir. Beklenen hasarların üzerine, belirsizlikleri ve operasyonel giderleri karşılamak için eklenen emniyet payıdır."
+    help="Beklenen hasarların üzerine eklenen emniyet payıdır (Security Loading)."
 )
 
 # Dinamik Rehberlik Metni
 if kar_marji < 15:
-    st.sidebar.warning("⚠️ Rekabetçi: Pazar payı artar ama risk yüksektir.")
+    st.sidebar.warning("⚠️ Rekabetçi: Risk yüksektir.")
 elif 15 <= kar_marji <= 35:
-    st.sidebar.info("✅ Dengeli: İdeal kâr ve güvenlik dengesi.")
+    st.sidebar.info("✅ Dengeli: İdeal denge.")
 else:
-    st.sidebar.success("🛡️ Güvenli: İflas riski minimum, primler yüksek.")
+    st.sidebar.success("🛡️ Güvenli: İflas riski minimum.")
 
 # 4. Reasürans & Süre
 with st.sidebar.expander("🏢 Gelişmiş Risk Yönetimi"):
-    reasurans_orani = st.sidebar.slider(
-        "Risk Devir Oranı (%)", 
-        0, 90, 0,
-        help="Büyük hasar risklerini başka bir şirkete (reasüröre) devrederek sermayenizi koruma yöntemidir. Hasarın bir kısmını onlar öder, siz de primin bir kısmını onlara verirsiniz."
-    )
-    analiz_suresi = st.sidebar.slider(
-        "Analiz Süresi (Yıl)", 
-        1, 5, 3,
-        help="Simülasyonun ne kadar ileriye dönük bir gelecek tahmini yapacağını belirler."
-    )
+    reasurans_orani = st.sidebar.slider("Risk Devir Oranı (%)", 0, 90, 0)
+    analiz_suresi = st.sidebar.slider("Analiz Süresi (Yıl)", 1, 5, 3)
 
 # --- HESAPLAMA MOTORU ---
 saf_prim = (hasar_ort * maliyet) / satis_hedefi
@@ -133,29 +122,4 @@ if st.sidebar.button("🚀 Analizi Başlat"):
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Tavsiye Edilen Prim", f"{tavsiye_prim:,.0f} TL")
     if iflas_riski < 5:
-        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="GÜVENLİ", delta_color="normal")
-    else:
-        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="RİSKLİ", delta_color="inverse")
-    c3.metric("Loss Ratio (Hasar/Prim)", f"%{loss_ratio:.1f}")
-    c4.metric("Tahmini Kasa", f"{ortalama_kasa:,.0f} TL")
-
-    st.markdown("---")
-    st.subheader("💡 Aktüeryal Değerlendirme & Reçete")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        if iflas_riski > 1:
-            en_kotu_senaryo = np.percentile(tablo[-1, :], 1)
-            ek_sermaye = abs(min(0, en_kotu_senaryo))
-            st.error(f"**Sermaye Yeterliliği:** Mevcut risk seviyesi yüksek. Riski %1'in altına çekmek için yaklaşık **{ek_sermaye:,.0f} TL** ek sermaye veya reasürans desteği önerilir.")
-        else:
-            st.success("**Sermaye Yeterliliği:** Şirketiniz finansal olarak çok sağlam durumda. Mevcut yapı riskleri karşılamak için yeterli.")
-    with col_b:
-        if loss_ratio > 85:
-            st.warning("**Operasyonel Verimlilik:** Loss Ratio çok yüksek. Primlerinizi artırmayı veya maliyetleri düşürmeyi düşünmelisiniz.")
-        else:
-            st.info("**Operasyonel Verimlilik:** Hasar/Prim dengesi sağlıklı. Şirket kâr üretebiliyor.")
-
-    # --- PLOTLY GRAFİK ---
-    st.subheader(f"📈 {analiz_suresi} Yıllık Sermaye Projeksiyonu")
-    fig = go.Figure()
-    x_ekseni = list(range(
+        c2.metric
