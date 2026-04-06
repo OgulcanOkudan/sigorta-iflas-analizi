@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 # --- SAYFA VE TASARIM AYARLARI ---
 st.set_page_config(page_title="Aktüeryal Risk & Fiyatlandırma Paneli", layout="wide")
 
-# Sidebar Tasarımı (CSS Dokunuşuyla Şov Başlıyor)
+# Sidebar Tasarımı (Büyük Başlıklar ve Genişlik)
 st.markdown(
     """
     <style>
@@ -17,7 +17,7 @@ st.markdown(
     .sidebar-header {
         font-size: 32px !important;
         font-weight: 800;
-        color: #00D1B2; /* Turkuaz tonuyla daha profesyonel */
+        color: #00D1B2;
         margin-bottom: 20px;
         margin-top: 10px;
     }
@@ -28,10 +28,6 @@ st.markdown(
         color: #F0F2F6;
         margin-bottom: 15px;
         margin-top: 10px;
-    }
-    /* Boşluk Ayarı */
-    .block-container {
-        padding-top: 2rem;
     }
     </style>
     """,
@@ -106,7 +102,7 @@ st.sidebar.info(f"🛡️ Şirket Üzerindeki Risk: %{100 - reasurans_orani}")
 
 st.sidebar.markdown("---") # AYIRICI ÇİZGİ
 
-# 5. Simülasyon Ayarları (YENİ AYRILMIŞ BÖLÜM)
+# 5. Simülasyon Ayarları
 st.sidebar.markdown('<p class="sidebar-subheader">⏱️ Simülasyon Ayarı</p>', unsafe_allow_html=True)
 analiz_suresi = st.sidebar.slider(
     "Analiz Süresi (Yıl)", 
@@ -115,7 +111,7 @@ analiz_suresi = st.sidebar.slider(
 )
 
 # --- HESAPLAMA MOTORU ---
-saf_prim = (hasar_ort * maliyet) / satis_hedefi
+saf_prim = (hasar_ort * maliyet) / (satis_hedefi if satis_hedefi > 0 else 1)
 tavsiye_prim = saf_prim * (1 + (kar_marji / 100))
 satis_geliri = tavsiye_prim * satis_hedefi * (1 - (reasurans_orani/100))
 beklenen_gider = (hasar_ort * maliyet) * (1 - (reasurans_orani/100))
@@ -128,5 +124,30 @@ if st.sidebar.button("🚀 ANALİZİ BAŞLAT"):
     tablo[0, :] = sermaye
     
     for ay in range(aylar):
+        # Gelir
         gelir = np.random.poisson(satis_hedefi, sim_n) * tavsiye_prim * (1 - (reasurans_orani/100))
-        hasar_sayisi = np.random.poisson(hasar_
+        # Hasar Adedi (Hatanın olduğu yer burasıydı, düzeltildi)
+        hasar_sayisi = np.random.poisson(hasar_ort, sim_n)
+        
+        # Hasar Maliyeti
+        gider = np.zeros(sim_n)
+        for s in range(sim_n):
+            if hasar_sayisi[s] > 0:
+                gider[s] = np.sum(np.random.exponential(maliyet, hasar_sayisi[s]))
+        
+        gider = gider * (1 - (reasurans_orani/100))
+        tablo[ay + 1, :] = tablo[ay, :] + gelir - gider
+
+    iflas_sayisi = np.sum(np.min(tablo, axis=0) < 0)
+    iflas_riski = (iflas_sayisi / sim_n) * 100
+    loss_ratio = (beklenen_gider / (satis_geliri if satis_geliri > 0 else 1)) * 100
+    ortalama_kasa = np.mean(tablo[-1, :])
+
+    # --- SONUÇ KARTLARI ---
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Tavsiye Edilen Prim", f"{tavsiye_prim:,.0f} TL")
+    if iflas_riski < 5:
+        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="GÜVENLİ", delta_color="normal")
+    else:
+        c2.metric("İflas Riski", f"%{iflas_riski:.2f}", delta="RİSKLİ", delta_color="inverse")
+    c3.metric("Loss Ratio", f"%{
