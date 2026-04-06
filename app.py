@@ -51,28 +51,4 @@ st.markdown("---")
 st.sidebar.markdown('<p class="sidebar-header">📊 Veri Girişi</p>', unsafe_allow_html=True)
 sermaye = st.sidebar.number_input("Başlangıç Sermayesi (TL)", value=1500000, step=50000)
 maliyet = st.sidebar.number_input("Dosya Başına Ort. Hasar Maliyeti", value=7500)
-satis_hedefi = st.sidebar.slider("Aylık Poliçe Satış Hedefi", 50, 500, 100)
-
-st.sidebar.markdown("---")
-st.sidebar.markdown('<p class="sidebar-subheader">📉 Hasar Frekansı</p>', unsafe_allow_html=True)
-h_verileri = []
-cols = st.sidebar.columns(2)
-for i in range(6):
-    val = cols[i%2].number_input(f"{i+1}. Ay", value=35 + (i*2), min_value=0)
-    h_verileri.append(val)
-hasar_ort = sum(h_verileri) / 6
-
-st.sidebar.markdown("---")
-st.sidebar.markdown('<p class="sidebar-subheader">💰 Fiyatlandırma</p>', unsafe_allow_html=True)
-kar_marji = st.sidebar.slider("Hedeflenen Kâr Marjı (%)", 0, 100, 25)
-if kar_marji < 15:
-    st.sidebar.warning("⚠️ Rekabetçi Mod: Risk yüksek!")
-elif 15 <= kar_marji <= 35:
-    st.sidebar.info("✅ Dengeli Mod: İdeal seviye.")
-else:
-    st.sidebar.success("🛡️ Güvenli Mod: Minimum risk.")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown('<p class="sidebar-subheader">🏢 Risk Yönetimi</p>', unsafe_allow_html=True)
-reasurans_orani = st.sidebar.slider("Risk Devir Oranı (%)", 0, 90, 0)
-st.sidebar.info(f"🛡️ Şirket Üzerindeki Risk
+satis_hedefi
