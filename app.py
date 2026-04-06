@@ -59,23 +59,25 @@ analiz_suresi = st.sidebar.slider("Analiz Süresi (Yıl)", 1, 5, 3)
 saf_prim = (hasar_ort * maliyet) / satis_hedefi
 tavsiye_prim = saf_prim * (1 + (kar_marji / 100))
 
-# Reasürans Etkisi (Basitleştirilmiş Quota Share)
+# Reasürans Etkisi (Quota Share)
 satis_geliri = tavsiye_prim * satis_hedefi * (1 - (reasurans_orani/100))
 beklenen_gider = (hasar_ort * maliyet) * (1 - (reasurans_orani/100))
 
 # --- SİMÜLASYON ---
 if st.sidebar.button("🚀 Analizi Başlat"):
     aylar = analiz_suresi * 12
-    sim_n = 5000 # Hız için 5000 yeterli
+    sim_n = 5000 
     tablo = np.zeros((aylar + 1, sim_n))
     tablo[0, :] = sermaye
     
+    # Simülasyon döngüsü
     for ay in range(aylar):
-        # Gelir ve Gider simülasyonu
+        # Gelir simülasyonu
         gelir = np.random.poisson(satis_hedefi, sim_n) * tavsiye_prim * (1 - (reasurans_orani/100))
+        # Hasar sayısı simülasyonu (Poisson)
         hasar_sayisi = np.random.poisson(hasar_ort, sim_n)
         
-        # Her simülasyon için toplam hasar maliyeti
+        # Toplam hasar maliyeti simülasyonu (Üstel Dağılım)
         gider = np.zeros(sim_n)
         for s in range(sim_n):
             if hasar_sayisi[s] > 0:
@@ -87,7 +89,7 @@ if st.sidebar.button("🚀 Analizi Başlat"):
     # Analitik Sonuçlar
     iflas_sayisi = np.sum(np.min(tablo, axis=0) < 0)
     iflas_riski = (iflas_sayisi / sim_n) * 100
-    loss_ratio = (beklenen_gider / satis_geliri) * 100
+    loss_ratio = (beklenen_gider / (satis_geliri if satis_geliri > 0 else 1)) * 100
     ortalama_kasa = np.mean(tablo[-1, :])
 
     # --- EKRAN ÇIKTILARI ---
@@ -110,7 +112,7 @@ if st.sidebar.button("🚀 Analizi Başlat"):
     col_a, col_b = st.columns(2)
     with col_a:
         if iflas_riski > 1:
-            # 99% VaR tabanlı basit sermaye önerisi
+            # En kötü %1'lik senaryoyu bulma
             en_kotu_senaryo = np.percentile(tablo[-1, :], 1)
             ek_sermaye = abs(min(0, en_kotu_senaryo))
             st.error(f"**Sermaye Yeterliliği:** Mevcut risk seviyesi yüksek. Riski %1'in altına çekmek için yaklaşık **{ek_sermaye:,.0f} TL** ek sermaye veya daha yüksek reasürans desteği önerilir.")
@@ -127,19 +129,19 @@ if st.sidebar.button("🚀 Analizi Başlat"):
     st.subheader(f"📈 {analiz_suresi} Yıllık Sermaye Projeksiyonu (5.000 Senaryo)")
     fig = go.Figure()
     
-    # İlk 100 senaryoyu çiz (Performans için)
+    # Performans için ilk 100 senaryoyu çiz
     x_ekseni = list(range(aylar + 1))
-    for i in range(100):
+    for i in range(min(100, sim_n)):
         fig.add_trace(go.Scatter(x=x_ekseni, y=tablo[:, i], mode='lines', line=dict(width=1), opacity=0.3, showlegend=False))
     
-    # Ortalama Çizgisi
+    # Ortalama Beklenti Çizgisi
     fig.add_trace(go.Scatter(x=x_ekseni, y=np.mean(tablo, axis=1), mode='lines', name='Ortalama Beklenti', line=dict(color='yellow', width=3)))
     
-    # İflas Çizgisi
+    # İflas Sınırı
     fig.add_trace(go.Scatter(x=x_ekseni, y=[0]*(aylar+1), mode='lines', name='İflas Sınırı (0 TL)', line=dict(color='red', width=2, dash='dash')))
     
     fig.update_layout(xaxis_title="Aylar", yaxis_title="Kasa Bakiyesi (TL)", hovermode="x unified", template="plotly_dark")
-    st.plotly_chart(fig, use_container_ Avocado=True)
+    st.plotly_chart(fig, use_container_width=True)
 
 else:
     st.info("Yandaki verileri kontrol edin ve analizi başlatmak için butona basın.")
