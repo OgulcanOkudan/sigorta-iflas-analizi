@@ -153,4 +153,9 @@ if st.sidebar.button("🚀 Analizi Başlat"):
         if loss_ratio > 85:
             st.warning("**Operasyonel Verimlilik:** Loss Ratio çok yüksek. Primlerinizi artırmayı veya maliyetleri düşürmeyi düşünmelisiniz.")
         else:
-            st.info("**Oper
+            st.info("**Operasyonel Verimlilik:** Hasar/Prim dengesi sağlıklı. Şirket kâr üretebiliyor.")
+
+    # --- PLOTLY GRAFİK ---
+    st.subheader(f"📈 {analiz_suresi} Yıllık Sermaye Projeksiyonu")
+    fig = go.Figure()
+    x_ekseni = list(range(
