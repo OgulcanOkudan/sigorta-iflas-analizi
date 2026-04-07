@@ -1,51 +1,55 @@
-import streamlit as st
-import numpy as np
-import plotly.graph_objects as go
-
 # --- 1. SAYFA VE TASARIM AYARLARI ---
 st.set_page_config(page_title="Aktüeryal Risk Paneli", layout="wide")
 
-# Akıllı Responsive (Duyarlı) Tasarım
+# Agresif Mobil ve PC Uyumluluk Ayarı
 st.markdown(
     """
     <style>
-    /* BİLGİSAYAR (Büyük Ekran) AYARLARI */
+    /* 1. GENEL EKAN BOŞLUKLARINI SIFIRLAMA (MOBİL ODAKLI) */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    /* 2. BİLGİSAYARDA (Geniş Ekran) YAN PANEL GENİŞLİĞİ */
     @media (min-width: 1024px) {
         [data-testid="stSidebar"] { 
             min-width: 380px !important; 
             max-width: 380px !important; 
         }
-    }
-
-    /* MOBİL VE TABLET (Küçük Ekran) AYARLARI */
-    @media (max-width: 1023px) {
-        [data-testid="stSidebar"] { 
-            min-width: 100% !important; 
+        .main .block-container {
+            padding-left: 5rem;
+            padding-right: 5rem;
         }
-        .sidebar-header { font-size: 24px !important; }
-        .sidebar-subheader { font-size: 18px !important; }
     }
 
-    /* ORTAK TASARIM ÖGELERİ */
-    .sidebar-header { font-size: 32px; font-weight: 800; color: #00D1B2; margin-bottom: 10px; }
-    .sidebar-subheader { font-size: 24px; font-weight: 700; color: #F0F2F6; margin-top: 15px; }
+    /* 3. MOBİLDE (Dar Ekran) TÜM BOŞLUKLARI KALDIRMA */
+    @media (max-width: 1023px) {
+        .main .block-container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+            padding-top: 1rem !important;
+        }
+        /* Metriklerin (Önerilen Prim vb.) düzgün görünmesi için */
+        [data-testid="stMetric"] {
+            width: 100% !important;
+            margin-bottom: 10px;
+        }
+    }
+
+    /* TASARIM ÖGELERİ (BUTON VE BAŞLIK) */
+    .sidebar-header { font-size: 28px; font-weight: 800; color: #00D1B2; }
+    .sidebar-subheader { font-size: 20px; font-weight: 700; color: #F0F2F6; }
     
     div.stButton > button {
         background-color: #00D1B2 !important;
         color: white !important;
-        font-size: 18px !important;
         font-weight: bold !important;
-        height: 55px !important;
+        height: 50px !important;
         border-radius: 10px !important;
         width: 100% !important;
-    }
-
-    /* Metrik kartlarının mobilde patlamaması için */
-    [data-testid="stMetric"] {
-        background-color: #262730;
-        padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #31333F;
     }
     </style>
     """,
